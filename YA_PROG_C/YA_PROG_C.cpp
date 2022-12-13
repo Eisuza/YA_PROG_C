@@ -1,43 +1,148 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h> //FILE, fopen(), fclose(), printf(), gets(), getchar(), fflush()
+#include <stdio.h> //FILE, fopen(), fclose(), fseek(), ftell(), fread(), printf(), gets(), getchar(), fflush()
+#include <stdlib.h> // malloc()
+
+struct priorNode
+{
+	int ascii;
+	int sum;
+	priorNode* next;
+	priorNode* prev;
+} *priorHead;
+
+priorNode* createQue(priorNode*& priorQue, int ascii, int sum);
+void deleteQue(priorNode*& priorQue);
+void sortQue(int numUsed);
 
 int main()
 {
-	FILE *file;
+	FILE* file;
 	int fileLen;
-	int a;
-	unsigned char flags[256] = { 0 };
+	char a;
+	int numUsed = 0;
+	int flags[256] = { 0 };
 	char filename[255];
 	printf("Enter the file name to archive: ");
 	gets(filename);
 	fflush(stdin);
-	if (!(file = fopen(filename, "r+b")))					// если файл не найден/не открыт
+	if (!(file = fopen(filename, "r+b")))					// РµСЃР»Рё С„Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ/РЅРµ РѕС‚РєСЂС‹С‚
 	{
-		printf("\nFile doesn't exists.");				// выводим сообщение
+		printf("\nFile doesn't exists.");				// РІС‹РІРѕРґРёРј СЃРѕРѕР±С‰РµРЅРёРµ
 		getchar();
 		return 0;
 	}
 	printf("\n all is fine\n");
-	fseek(file, 0, SEEK_END);				// достигаем конца файла
-	fileLen = ftell(file);					// получаем кол-во символов в файле
-	fseek(file, 0, SEEK_SET);				// возвращаемся в начало файла
-	printf("Characters which we got from the file are: \n");
+	fseek(file, 0, SEEK_END);				// РґРѕСЃС‚РёРіР°РµРј РєРѕРЅС†Р° С„Р°Р№Р»Р°
+	fileLen = ftell(file);					// РїРѕР»СѓС‡Р°РµРј РєРѕР»-РІРѕ СЃРёРјРІРѕР»РѕРІ РІ С„Р°Р№Р»Рµ
+	fseek(file, 0, SEEK_SET);				// РІРѕР·РІСЂР°С‰Р°РµРјСЃСЏ РІ РЅР°С‡Р°Р»Рѕ С„Р°Р№Р»Р°
 	for (int i = 0; i < fileLen; i++)
 	{
-		fread(&a, sizeof(char), 1, file);	// считываем из файла 1 символ
-		printf("%c ", a);					// выводим его на просмотр
-		flags[a] += 1;
+		fread(&a, sizeof(char), 1, file);	// РЅР°С…РѕРґРёРј РєРѕР»-РІРѕ СЃРёРјРІРѕР»РѕРІ
+		printf("%c", a);
+		flags[a]++;
 	}
 	printf("\n");
-	for (int i = 0; i < 256; i++)
-	{
-		if (i == 7)
-			printf("%d.  = Bell\n", i);
-		else
-			printf("%d. %c. = %d\n", i, i, flags[i]);
-	}
 
+	struct priorNode* priorTemp = (struct priorNode*)malloc(numUsed * sizeof(struct priorNode));
+	
+	//priorNode* priorQue = NULL;
+	for (int i = 0, j = 0; i < 256; i++)
+	{
+		if (flags[i] != 0)
+		{
+//			priorQue = createQue(priorQue, i, flags[i]);
+			priorTemp[j].ascii = i;
+			priorTemp[j].sum = flags[i];
+			j++;
+			numUsed++;
+			printf("%d. %c. = %d\n", i, i, flags[i]);
+		}
+	}
+	//printf("%d\n", priorHead);
+	//printf("%d\n", priorQue);
+	printf("%d", numUsed);
+
+	//priorQue = priorHead;
+
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		printf("%d, %d\n", priorTemp[i].ascii, priorTemp[i].sum);
+		
+		//printf("%c, %d\n", priorQue->ascii, priorQue->sum);
+		//priorQue = priorQue->next;
+	}
+	//sortQue(numUsed);
+	//priorQue = priorHead;
+	//for (int i = 0; i < numUsed; i++)
+	//{
+	//	printf("%c, %d\n", priorQue->ascii, priorQue->sum);
+	//	priorQue = priorQue->next;
+	//}
+
+
+
+
+
+	//deleteQue(priorHead);
 	fclose(file);
 	getchar();
 	return 0;
+}
+
+
+priorNode *createQue(priorNode *&priorQue, int ascii, int sum)
+{
+
+	if (NULL == priorQue)
+	{
+		priorQue = (priorNode*)malloc(sizeof(priorNode));
+		priorQue->ascii = ascii;
+		priorQue->sum = sum;
+		priorQue->prev = NULL;
+		priorQue->next = NULL;
+		priorHead = priorQue;
+		return priorQue;
+	}
+	else
+	{
+		priorQue->next = (priorNode*)malloc(sizeof(priorNode));
+		priorQue->next->ascii = ascii;
+		priorQue->next->sum = sum;
+		priorQue->next->next = NULL;
+		priorQue->prev = priorQue;
+		return priorQue->next;
+	}
+}
+
+void deleteQue(priorNode *&priorQue)
+{
+	if (priorQue != NULL)		// РµСЃР»Рё СѓР·РµР» РЅРµ РїСѓСЃС‚
+	{
+		deleteQue(priorQue->next);	// С„СѓРЅРєС†РёСЏ РІС‹Р·С‹РІР°РµС‚ СЃР°РјСѓ СЃРµР±СЏ СЃ Р°РґСЂРµСЃРѕРј Р»РµРІРѕР№ РІРµС‚РІРё
+		free(priorQue);		// РѕСЃРІРѕР±РѕР¶РґР°РµРј СЂР°РЅРµРµ РІС‹РґРµР»РµРЅРЅСѓСЋ РїР°РјСЏС‚СЊ
+	}
+}
+
+void sortQue(int numUsed)
+{
+	priorNode *priorQue;
+	priorQue = priorHead;
+	priorNode *priorTemp = (priorNode*)malloc(sizeof(priorNode));
+	for (int i = 0; i <= numUsed; i++)
+	{
+		for (int j = 1; j > i; j--)
+		{
+			if (priorQue->sum > priorQue->next->sum)
+			{
+				priorTemp->sum = priorQue->sum;
+				priorTemp->ascii = priorQue->ascii;
+				priorQue->sum = priorQue->next->sum;
+				priorQue->ascii = priorQue->next->ascii;
+				priorQue->next->sum = priorTemp->sum;
+				priorQue->next->ascii = priorTemp->ascii;
+			}
+		}
+	}
+	free(priorTemp);
 }
