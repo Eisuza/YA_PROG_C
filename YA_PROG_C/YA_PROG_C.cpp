@@ -22,8 +22,9 @@ struct priorNode
 
 struct codeTable
 {
-	char code[8];
+	char code[16];
 	int ascii;
+	int sum;
 } *pCoder;
 
 int tableRow = 0;
@@ -34,6 +35,7 @@ void printQue(priorNode* priorQue);
 void priorTree(priorNode* priorQue);
 void priorInsert(priorNode* priorQue, priorNode* pNew);
 void treeCodding(priorNode* priorQue, char* code);
+void fileCodding(codeTable* pCoder, FILE* file, int fileLen, int numUsed, charCount* flags);
 void priorDelete(priorNode*& priorQue);
 
 int main()
@@ -60,6 +62,7 @@ int main()
 	fseek(file, 0, SEEK_END);				// достигаем конца файла
 	fileLen = ftell(file);					// получаем кол-во символов в файле
 	fseek(file, 0, SEEK_SET);				// возвращаемся в начало файла
+	printf("fileLen: %d\n", fileLen);
 	for (int i = 0, j = 1; i < fileLen; i++)
 	{
 		fread(&character, sizeof(char), 1, file);	// находим кол-во каждого из символов
@@ -93,15 +96,17 @@ int main()
 	priorTree(priorHead);
 	char code[8] = "";
 	pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));
+	for (int i; i < numUsed; i++)
+		pCoder[i].ascii = 0;
 	treeCodding(priorHead, code);
 	priorDelete(priorHead);
 
 	for (int i = 0; i < numUsed; i++)
-		printf("Ascii: %d, Code: %s\n", pCoder[i].ascii, pCoder[i].code);
+		printf("Ascii: %c, Code: %s\n", pCoder[i].ascii, pCoder[i].code);
 
+	fileCodding(pCoder, file, fileLen, numUsed, flags);
 
-
-
+	free(flags);
 	free(pCoder);
 	printf("numUsed is: %d\n", numUsed);
 	getchar();
@@ -178,6 +183,7 @@ void printQue(priorNode* priorQue)
 		printf("ascii:%d, char: %c, sum:%d\n", pTemp->ascii,pTemp->ascii, pTemp->sum);
 		pTemp = pTemp->next;
 	} while (pTemp != priorTail->next);
+	return;
 }
 
 
@@ -293,13 +299,103 @@ void treeCodding(priorNode* priorQue, char* code)
 		printf("my kopiruem eto: %s\n", code);
 		strcpy(priorQue->code, code);
 		printf("i = %d, sum in node :%d, ascii in tree: %d, code is: %s\n", tableRow, priorQue->sum, priorQue->ascii, priorQue->code);
-		pCoder[tableRow].ascii = priorQue->ascii;
-		printf("ASKII JUST COPY: %d\n", pCoder[tableRow].ascii);
 		strcpy(pCoder[tableRow].code, priorQue->code);
+		pCoder[tableRow].sum = priorQue->sum;
+		pCoder[tableRow].ascii = priorQue->ascii;
+		printf("ASKII JUST COPY: %d CODE JUST COPY: %s\n", pCoder[tableRow].ascii, pCoder[tableRow].code);
+
 		tableRow++;
 	}
 	return;
 }
+
+void fileCodding(codeTable* pCoder, FILE* file, int fileLen, int numUsed, charCount *flags)
+{
+	char character;
+	char* codedFile = (char*)malloc(fileLen * 5 * sizeof(char));
+	int byteCount = 0;
+	int bytePart = 0;
+	printf("STRLEN codedFile: %d\n", strlen(codedFile));
+	printf("fileLen is: %d\n", fileLen);
+	strcpy(codedFile, "");
+
+	fseek(file, 0, SEEK_SET);				// возвращаемся в начало файла
+	for (int i = 0; i < fileLen; i++)
+	{
+		fread(&character, sizeof(char), 1, file);	// находим кол-во каждого из символов
+//		printf("%d|", character);
+		for (int j = 0; j < numUsed; j++)
+		{
+			if ((int)character == pCoder[j].ascii)
+			{
+//				printf("pCoder[j].code = %s\n", pCoder[j].code);
+				strcat(codedFile, pCoder[j].code);
+				//printf("%s\n", codedFile);
+			}
+		}
+	}
+	printf("%s\n", codedFile);
+	printf("SIZEOF codedFile: %d\n", strlen(codedFile));
+	byteCount = strlen(codedFile) / CHAR_BIT;
+	bytePart = strlen(codedFile) % CHAR_BIT;
+	printf("byteCount needed: %d\nbytePart left: %d\n", byteCount, bytePart);
+	printf("random char: %c\n", codedFile[5]);
+
+	FILE* file2;
+
+	char filename2[255];
+	strcpy(filename2, "NewFile.ivs51");
+	printf("filename2: %s", filename2);
+	if (!(file2 = fopen(filename2, "w+b")))					// если файл не найден/не открыт
+	{
+		printf("\nFile doesn't exists.");				// выводим сообщение
+		getchar();
+		return;
+	}
+	else
+	{
+		fwrite(&numUsed, sizeof(char), 1, file2);
+		fwrite(&byteCount, sizeof(int), 1, file2);
+		fwrite(&bytePart, sizeof(char), 1, file2);
+		for (int i = 0; i < 256; i++)
+		{
+			if ((flags[i].sum > 0))
+			{
+				fwrite(&i, sizeof(char), 1, file2);
+				fwrite(&flags[i].sum, sizeof(int), 1, file2);
+			}
+		}
+		unsigned char codedByte = NULL;
+		int k = 0;
+		for (int i = 0; i < byteCount; i++)
+		{
+			codedByte = NULL;
+			for (int j = 0; j < 8; j++, k++)
+			{
+				if (codedFile[k] == '1')
+				{
+					codedByte = codedByte | (1 << (7 - j));
+				}
+			}
+			fwrite(&codedByte, 1, 1, file2);
+		}
+		codedByte = NULL;
+		for (int j = 0; j < 8; j++)
+		{
+			if ((j >= (8 - bytePart)) && (codedFile[k] == '1'))
+			{
+				codedByte = codedByte | (1 << (7 - j));
+				k++;
+			}
+		}
+			fwrite(&codedByte, 1, 1, file2);
+
+	}
+	fclose(file2);
+	free(codedFile);
+	return;
+}
+
 
 void priorDelete(priorNode*& priorQue)		// функция удаления дерева
 {
@@ -309,4 +405,5 @@ void priorDelete(priorNode*& priorQue)		// функция удаления де�
 		priorDelete(priorQue->left);	// функция вызывает саму себя с адресов правой ветви
 		free(priorQue);		// освобождаем ранее выделенную память
 	}
+	return;
 }
