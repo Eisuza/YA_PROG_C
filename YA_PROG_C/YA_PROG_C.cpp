@@ -48,6 +48,7 @@ void fileCodding(FILE* file, int fileLen, int numUsed);
 void fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &codedFile);
 void priorWalking(priorNode*& priorQue, char* &codedFile, FILE* &file);
 void priorDelete(priorNode*& priorQue);
+void getSortedFlags(FILE* file);
 
 int main()
 {
@@ -77,34 +78,13 @@ int main()
 	}
 	else if (mode == '0')												// to UNZIP
 	{
-		printf("numUsed is: %d\nNEW ADVANTURE:\n", numUsed);
 		int byteCount = 0;													
 		int bytePart = 0;													
 		fread(&numUsed, 1, 1, file);
 		fread(&byteCount, sizeof(int), 1, file);
 		fread(&bytePart, 1, 1, file);
 		flags = (charCount*)malloc(numUsed * sizeof(charCount));		// keep ascii and its code
-		for (int i = 0; i < numUsed; i++)
-		{
-			fread(&flags[i].ascii, 1, 1, file);
-			fread(&flags[i].sum, sizeof(int), 1, file);
-		}
-		int ascii, sum = 0;
-		for (int i = 0; i < numUsed - 1; i++)
-		{
-			for (int j = numUsed - 1; j > i; --j)
-			{
-				if (flags[j - 1].ascii > flags[j].ascii)
-				{
-					ascii = flags[j].ascii;
-					sum = flags[j].sum;
-					flags[j].ascii = flags[j - 1].ascii;
-					flags[j].sum = flags[j - 1].sum;
-					flags[j].ascii = ascii;
-					flags[j].sum = sum;
-				}
-			}
-		}
+		getSortedFlags(file);
 		priorNode* priorQue = NULL;										// queue of nodes
 		for (int i = 0; i < numUsed; i++)
 		{
@@ -119,11 +99,10 @@ int main()
 		pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));		// keep ascii and its code
 		for (int i = 0; i < numUsed; i++)
 			pCoder[i].ascii = 0;
-		char code[8] = "";												// for tree codding, keeps codes before put it in pCoder table
+		char code[8] = "";												// for tree codding, keeps codes
 		treeCodding(priorHead, code);
-
 		char* codedFile = (char*)malloc((byteCount * 8 + bytePart + 1) * sizeof(char));		// keeps all file data in chars
-		fileUncoding(file, byteCount, bytePart, numUsed, codedFile);							// cooding file
+		fileUncoding(file, byteCount, bytePart, numUsed, codedFile);						// getting data from file
 		printf("CodedFILE is: %s\n", codedFile);
 		int sizeLeft = strlen(codedFile);
 		FILE* file2;
@@ -135,11 +114,10 @@ int main()
 		}
 		do 
 		{
-			printf("curPosition: = %d", curPosition);
 			priorWalking(priorHead, codedFile, file2);
-		} while (curPosition <= sizeLeft);
+		} while (curPosition < sizeLeft);
 
-//		priorDelete(priorHead);											// delete tree
+		priorDelete(priorHead);											// delete tree
 		fclose(file);
 		free(codedFile);
 		getchar();
@@ -382,7 +360,7 @@ void treeCodding(priorNode* priorQue, char* code)
 	if (priorQue->right != NULL)
 	{
 		strcat(code, "1");
-		printf("i go right\n");
+//		printf("i go right\n");
 		treeCodding(priorQue->right, code);
 		if (strlen(code) > 0)
 			code[strlen(code) - 1] = '\0';
@@ -391,7 +369,7 @@ void treeCodding(priorNode* priorQue, char* code)
 	if (priorQue->left != NULL)
 	{
 		strcat(code, "0");
-		printf("i go left\n");
+//		printf("i go left\n");
 		treeCodding(priorQue->left, code);
 		if (strlen(code) > 0)
 			code[strlen(code) - 1] = '\0';
@@ -403,9 +381,9 @@ void treeCodding(priorNode* priorQue, char* code)
 		pCoder[tableRow].sum = priorQue->sum;
 		pCoder[tableRow].ascii = priorQue->ascii;
 		tableRow++;
-		printf("askii i have: %c\n", priorQue->ascii);
+//		printf("askii i have: %c\n", priorQue->ascii);
 	}
-	printf("i return up:\n");
+//	printf("i return up:\n");
 	return;
 }
 
@@ -525,29 +503,51 @@ void priorWalking(priorNode*& priorQue, char*& codedFile, FILE*& file)
 {
 	if (codedFile[curPosition] == '1' && priorQue->right != NULL)
 	{
-		printf("i go right:\n");
 		curPosition++;
 		priorWalking(priorQue->right, codedFile, file);
 	}
-	else if (codedFile[curPosition] == '1' && priorQue->right == NULL)
+	else if ((codedFile[curPosition] == '1'|| codedFile[curPosition] == '\0') && priorQue->right == NULL)
 	{
-		printf("i write to file:%c\n", priorQue->ascii);
+		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
-		//curPosition++;
-		//priorWalking(priorQue->parent, codedFile, curPosition, fileLen, file);
+		return;
 	}
 	else if (codedFile[curPosition] == '0' && priorQue->left != NULL)
 	{
-		printf("i go left:\n");
 		curPosition++;
 		priorWalking(priorQue->left, codedFile, file);
 	}
-	else if (codedFile[curPosition] == '0' && priorQue->left == NULL)
+	else if ((codedFile[curPosition] == '0' || codedFile[curPosition] == '\0') && priorQue->left == NULL)
 	{
-		printf("i write to file:%c\n", priorQue->ascii);
+		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
-		//curPosition++;
-		//priorWalking(priorQue->parent, codedFile, curPosition, fileLen, file);
+		return;
 	}
+
 	return;
+}
+void getSortedFlags(FILE* file)
+{
+	for (int i = 0; i < numUsed; i++)
+	{
+		fread(&flags[i].ascii, 1, 1, file);
+		fread(&flags[i].sum, sizeof(int), 1, file);
+	}
+	int ascii, sum = 0;
+	for (int i = 0; i < numUsed - 1; i++)
+	{
+		for (int j = numUsed; j > i; --j)
+		{
+			if (flags[j - 1].ascii > flags[j].ascii)
+			{
+				printf("sorting\n");
+				ascii = flags[j].ascii;
+				sum = flags[j].sum;
+				flags[j].ascii = flags[j - 1].ascii;
+				flags[j].sum = flags[j - 1].sum;
+				flags[j - 1].ascii = ascii;
+				flags[j - 1].sum = sum;
+			}
+		}
+	}
 }
