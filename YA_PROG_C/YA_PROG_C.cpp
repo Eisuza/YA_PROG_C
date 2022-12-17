@@ -84,7 +84,29 @@ int main()
 		fread(&byteCount, sizeof(int), 1, file);
 		fread(&bytePart, 1, 1, file);
 		flags = (charCount*)malloc(numUsed * sizeof(charCount));		// keep ascii and its code
-		getSortedFlags(file);
+		for (int i = 0; i < numUsed; i++)
+		{
+			fread(&flags[i].ascii, 1, 1, file);
+			fread(&flags[i].sum, sizeof(int), 1, file);
+		}
+		int ascii, sum = 0;
+		for (int i = 0; i < numUsed - 1; i++)
+		{
+			for (int j = numUsed; j > i; --j)
+			{
+				if (flags[j - 1].ascii > flags[j].ascii)
+				{
+					printf("sorting\n");
+					ascii = flags[j].ascii;
+					sum = flags[j].sum;
+					flags[j].ascii = flags[j - 1].ascii;
+					flags[j].sum = flags[j - 1].sum;
+					flags[j - 1].ascii = ascii;
+					flags[j - 1].sum = sum;
+				}
+			}
+		}
+		//getSortedFlags(file);
 		priorNode* priorQue = NULL;										// queue of nodes
 		for (int i = 0; i < numUsed; i++)
 		{
@@ -116,11 +138,14 @@ int main()
 		{
 			priorWalking(priorHead, codedFile, file2);
 		} while (curPosition < sizeLeft);
-
-		priorDelete(priorHead);											// delete tree
+		char newLine = 10;
+		fwrite(&newLine, 1, 1, file2);
 		fclose(file);
+		fclose(file2);
+		priorDelete(priorHead);											// delete tree
 		free(codedFile);
 		getchar();
+		printf("going to close all\n");
 	}
 	else
 	{
@@ -147,7 +172,9 @@ FILE* getFileName()
 	int namePosition = 0;
 	int extentionPosition = 0;
 	char extention[10];
-	for (int i = nameLen; i >= 0; i--)
+	int i = 0;
+	int j = 0;
+	for (i = nameLen; i >= 0; i--)
 	{
 		if ((filename[i] == '.') && (mode == '0'))
 		{
@@ -160,22 +187,33 @@ FILE* getFileName()
 			break;
 		}
 	}
-	int j = 0;
-	for (int i = namePosition; i < nameLen; i++)
-	{
-		FILENAME[j] = filename[i];
-		j++;
-	}
-	FILENAME[j] = '\0';
-	j = 0;
-	for (int i = extentionPosition; i < nameLen; i++)
+	for (i = extentionPosition; i < nameLen; i++)
 	{
 		extention[j] = filename[i];
 		j++;
 	}
 	extention[j] = '\0';
 	if (strcmp(extention, ".ivs51") == 0)
+	{
 		mode = '0';
+		j = 0;
+		for (i = namePosition; i < extentionPosition; i++)
+		{
+			FILENAME[j] = filename[i];
+			j++;
+		}
+		FILENAME[j] = '\0';
+	}
+	else
+	{
+		j = 0;
+		for (i = namePosition; i < nameLen; i++)
+		{
+			FILENAME[j] = filename[i];
+			j++;
+		}
+		FILENAME[j] = '\0';
+	}
 	return file;
 }
 
@@ -187,13 +225,15 @@ void getCharacterFrequency(charCount* &flags, int fileLen, FILE *file, priorNode
 	for (int i = 0; i < fileLen; i++)
 	{
 		fread(&character, sizeof(char), 1, file);
-		printf("%c", character);
-		if (flags[character].sum == 0)
-		{
-			flags[character].ascii = i;
-			numUsed++;
+		if (character != '\r') {
+			printf("%c\n", character);
+			if (flags[character].sum == 0)
+			{
+				flags[character].ascii = i;
+				numUsed++;
+			}
+			flags[character].sum++;
 		}
-		flags[character].sum++;
 	}
 	for (int i = 0; i < 256; i++)
 	{
@@ -523,7 +563,6 @@ void priorWalking(priorNode*& priorQue, char*& codedFile, FILE*& file)
 		fwrite(&priorQue->ascii, 1, 1, file);
 		return;
 	}
-
 	return;
 }
 void getSortedFlags(FILE* file)
