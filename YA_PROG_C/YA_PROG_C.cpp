@@ -1,23 +1,23 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h> //FILE, fopen(), fclose(), fseek(), ftell(), fread(), printf(), gets(), getchar(), fflush()
-#include <stdlib.h> // malloc()
-#include <string.h>
+#include <stdio.h> // FILE, fopen(), fclose(), fseek(), ftell(), fread(), printf(), gets(), getchar(), fflush()
+#include <stdlib.h> // malloc(), free(), exit()
+#include <string.h> // strlen(), strcmp(), strcat(), strcpy()
 
 struct charCount {
-	int sum = 0;
-	int ascii = 0;
+	int sum;
+	int ascii;
 } *flags;
 
 struct priorNode
 {
-	int ascii = 0;
-	int sum = 0;
+	int ascii;
+	int sum;
 	char code[16];
-	priorNode* prev = NULL;		// for que
-	priorNode* next = NULL;
-	priorNode* parent = NULL;	// for tree
-	priorNode* left = NULL;
-	priorNode* right = NULL;
+	priorNode* prev;		// for que
+	priorNode* next;
+	priorNode* parent;		// for tree
+	priorNode* left;
+	priorNode* right;
 } *priorHead, *priorTail;
 
 struct codeTable
@@ -27,108 +27,69 @@ struct codeTable
 	int sum;
 } *pCoder;
 
-int tableRow = 0; // for tree codding
-int curPosition = 0;
-
-
+int tableRow = 0;			// vars for stop recursions: treeCodding
+int curPosition = 0;		// fileSaving
 char FILENAME[255];
 char mode = '0';
-int numUsed = 0;
-
 
 FILE* getFileName();
-void getCharacterFrequency(charCount*& flags, int fileLen, FILE* file, priorNode*& priorQue);
+int getCharacterFrequency(int fileLen, FILE* file, priorNode* &priorQue);
+void getSortedFlags(int numUsed, FILE* file, priorNode* &priorQue);
 priorNode* createQue(priorNode* priorQue, int ascii, int sum);
 void sortQue();
-//void printQue(priorNode* priorQue);
 void priorTree(priorNode* priorQue);
 void priorInsert(priorNode* priorQue, priorNode* pNew);
 void treeCodding(priorNode* priorQue, char* code);
 void fileCodding(FILE* file, int fileLen, int numUsed);
-void fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &codedFile);
-void priorWalking(priorNode*& priorQue, char* &codedFile, FILE* &file);
-void priorDelete(priorNode*& priorQue);
-void getSortedFlags(FILE* file);
+char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &codedFile);
+void fileSaving(priorNode*& priorQue, char* &codedFile, FILE* &file);
+void treeDelete(priorNode*& priorQue);
 
 int main()
 {
 	FILE* file = getFileName();
 	if (mode == '1')													// to ZIP
 	{
-		fseek(file, 0, SEEK_END);
-		int fileLen = ftell(file);										// file length
+		int fileLen = 0;
+		char character;
+		while (fread(&character, sizeof(char), 1, file))
+			fileLen++;
 		fseek(file, 0, SEEK_SET);
-		flags = (charCount*)malloc(256 * sizeof(charCount));			// character frequency table
 		priorNode* priorQue = NULL;										// queue of nodes
-		getCharacterFrequency(flags, fileLen, file, priorQue);			// fill character frequency table and create a queue of nodes
-		free(flags);
+		int numUsed = getCharacterFrequency(fileLen, file, priorQue);			// fill character frequency table and create a queue of nodes
 		sortQue();														// sorting queue of nodes
 		priorTree(priorHead);											// building the tree
-
 		pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));		// keep ascii and its code
 		for (int i = 0; i < numUsed; i++)
 			pCoder[i].ascii = 0;
 		char code[8] = "";												// for tree codding, keeps codes before put it in pCoder table
 		treeCodding(priorHead, code);
-		priorDelete(priorHead);											// delete tree
+		treeDelete(priorHead);											// delete tree
 		fileCodding(file, fileLen, numUsed);							// cooding file
-		fclose(file);
-		free(pCoder);
 		getchar();
 	}
 	else if (mode == '0')												// to UNZIP
 	{
 		int byteCount = 0;													
-		int bytePart = 0;													
+		int bytePart = 0;
+		int numUsed = 0;
 		fread(&numUsed, 1, 1, file);
 		fread(&byteCount, sizeof(int), 1, file);
 		fread(&bytePart, 1, 1, file);
-		flags = (charCount*)malloc(numUsed * sizeof(charCount));		// keep ascii and its code
-		for (int i = 0; i < numUsed; i++)
-		{
-			fread(&flags[i].ascii, 1, 1, file);
-			fread(&flags[i].sum, sizeof(int), 1, file);
-		}
-		int ascii, sum = 0;
-		for (int i = 0; i < numUsed - 1; i++)
-		{
-			for (int j = numUsed; j > i; --j)
-			{
-				if (flags[j - 1].ascii > flags[j].ascii)
-				{
-					printf("sorting\n");
-					ascii = flags[j].ascii;
-					sum = flags[j].sum;
-					flags[j].ascii = flags[j - 1].ascii;
-					flags[j].sum = flags[j - 1].sum;
-					flags[j - 1].ascii = ascii;
-					flags[j - 1].sum = sum;
-				}
-			}
-		}
-		//getSortedFlags(file);
 		priorNode* priorQue = NULL;										// queue of nodes
-		for (int i = 0; i < numUsed; i++)
-		{
-			priorQue = createQue(priorQue, flags[i].ascii, flags[i].sum);
-			printf("flags: %d. %c. = %d\n", i, flags[i].ascii, flags[i].sum);
-
-		}
-		free(flags);
+		getSortedFlags(numUsed, file, priorQue);
 		sortQue();														// sorting queue of nodes
 		priorTree(priorHead);											// building the tree
-
 		pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));		// keep ascii and its code
 		for (int i = 0; i < numUsed; i++)
 			pCoder[i].ascii = 0;
 		char code[8] = "";												// for tree codding, keeps codes
 		treeCodding(priorHead, code);
-		char* codedFile = (char*)malloc((byteCount * 8 + bytePart + 1) * sizeof(char));		// keeps all file data in chars
-		fileUncoding(file, byteCount, bytePart, numUsed, codedFile);						// getting data from file
+		char* codedFile = fileUncoding(file, byteCount, bytePart, numUsed, codedFile);						// getting data from file
 		printf("CodedFILE is: %s\n", codedFile);
 		int sizeLeft = strlen(codedFile);
 		FILE* file2;
-		if (!(file2 = fopen(FILENAME, "w+b")))
+		if (!(file2 = fopen(FILENAME, "w+t")))
 		{
 			printf("\nCannot create file2\n");
 			getchar();
@@ -136,16 +97,14 @@ int main()
 		}
 		do 
 		{
-			priorWalking(priorHead, codedFile, file2);
+			fileSaving(priorHead, codedFile, file2);
 		} while (curPosition < sizeLeft);
 		char newLine = 10;
 		fwrite(&newLine, 1, 1, file2);
-		fclose(file);
 		fclose(file2);
-		priorDelete(priorHead);											// delete tree
+		treeDelete(priorHead);											// delete tree
 		free(codedFile);
 		getchar();
-		printf("going to close all\n");
 	}
 	else
 	{
@@ -162,7 +121,7 @@ FILE* getFileName()
 	printf("Enter the file name: ");
 	gets(filename);
 	fflush(stdin);
-	if (!(file = fopen(filename, "r+b")))					
+	if (!(file = fopen(filename, "r+t")))					
 	{
 		printf("\nFile doesn't exists.");				
 		getchar();
@@ -217,15 +176,16 @@ FILE* getFileName()
 	return file;
 }
 
-void getCharacterFrequency(charCount* &flags, int fileLen, FILE *file, priorNode* &priorQue)
+int getCharacterFrequency(int fileLen, FILE *file, priorNode* &priorQue)
 {
+	charCount *flags = (charCount*)malloc(256 * sizeof(charCount));			// character frequency table
 	char character;
+	int numUsed = 0;
 	for (int i = 0; i < 256; i++)
 		flags[i].sum = flags[i].ascii = 0;
 	for (int i = 0; i < fileLen; i++)
 	{
 		fread(&character, sizeof(char), 1, file);
-		if (character != '\r') {
 			printf("%c\n", character);
 			if (flags[character].sum == 0)
 			{
@@ -233,7 +193,6 @@ void getCharacterFrequency(charCount* &flags, int fileLen, FILE *file, priorNode
 				numUsed++;
 			}
 			flags[character].sum++;
-		}
 	}
 	for (int i = 0; i < 256; i++)
 	{
@@ -243,11 +202,46 @@ void getCharacterFrequency(charCount* &flags, int fileLen, FILE *file, priorNode
 			printf("flags: %d. %c. = %d\n", i, i, flags[i].sum);
 		}
 	}
+	free(flags);
+	return numUsed;
+}
+
+void getSortedFlags(int numUsed, FILE* file, priorNode* &priorQue)
+{
+	flags = (charCount*)malloc(numUsed * sizeof(charCount));		// keep ascii and its code
+	for (int i = 0; i < numUsed; i++)
+	{
+		fread(&flags[i].ascii, 1, 1, file);
+		fread(&flags[i].sum, sizeof(int), 1, file);
+	}
+	int ascii, sum = 0;
+	for (int i = 0; i < numUsed - 1; i++)
+	{
+		for (int j = numUsed; j > i; --j)
+		{
+			if (flags[j - 1].ascii > flags[j].ascii)
+			{
+				printf("sorting\n");
+				ascii = flags[j].ascii;
+				sum = flags[j].sum;
+				flags[j].ascii = flags[j - 1].ascii;
+				flags[j].sum = flags[j - 1].sum;
+				flags[j - 1].ascii = ascii;
+				flags[j - 1].sum = sum;
+			}
+		}
+	}
+	for (int i = 0; i < numUsed; i++)
+	{
+		priorQue = createQue(priorQue, flags[i].ascii, flags[i].sum);
+		printf("flags: %d. %c. = %d\n", i, flags[i].ascii, flags[i].sum);
+	}
+	free(flags);
+	return;
 }
 
 priorNode* createQue(priorNode* priorQue, int ascii, int sum)
 {
-
 	if (priorQue == NULL)
 	{
 		priorQue = (priorNode*)malloc(sizeof(priorNode));
@@ -276,6 +270,7 @@ priorNode* createQue(priorNode* priorQue, int ascii, int sum)
 		return priorQue->next;
 	}
 }
+
 void sortQue()
 {
 	priorNode* pCurrent = priorHead;
@@ -304,18 +299,6 @@ void sortQue()
 	return;
 }
 
-/*void printQue(priorNode* priorQue)
-{
-	struct priorNode* pTemp;
-	pTemp = priorQue;
-	do
-	{
-		printf("ascii:%d, char: %c, sum:%d\n", pTemp->ascii,pTemp->ascii, pTemp->sum);
-		pTemp = pTemp->next;
-	} while (pTemp != priorTail->next);
-	return;
-}*/
-
 void priorTree(priorNode* priorQue)
 {
 	while (priorHead != priorTail->next)
@@ -341,6 +324,7 @@ void priorTree(priorNode* priorQue)
 	priorHead = priorQue;
 	return;
 }
+
 void priorInsert(priorNode* priorQue, priorNode* pNew)
 {
 	int value = 1;
@@ -400,7 +384,6 @@ void treeCodding(priorNode* priorQue, char* code)
 	if (priorQue->right != NULL)
 	{
 		strcat(code, "1");
-//		printf("i go right\n");
 		treeCodding(priorQue->right, code);
 		if (strlen(code) > 0)
 			code[strlen(code) - 1] = '\0';
@@ -409,7 +392,6 @@ void treeCodding(priorNode* priorQue, char* code)
 	if (priorQue->left != NULL)
 	{
 		strcat(code, "0");
-//		printf("i go left\n");
 		treeCodding(priorQue->left, code);
 		if (strlen(code) > 0)
 			code[strlen(code) - 1] = '\0';
@@ -421,16 +403,15 @@ void treeCodding(priorNode* priorQue, char* code)
 		pCoder[tableRow].sum = priorQue->sum;
 		pCoder[tableRow].ascii = priorQue->ascii;
 		tableRow++;
-//		printf("askii i have: %c\n", priorQue->ascii);
+		printf("char:%c code:%s\n", priorQue->ascii, code);
 	}
-//	printf("i return up:\n");
 	return;
 }
 
 void fileCodding(FILE* file, int fileLen, int numUsed)
 {
 	char character;
-	char* codedFile = (char*)malloc(fileLen * 5 * sizeof(char));		// keeps all file data in chars
+	char* codedFile = (char*)malloc(fileLen * 8 * sizeof(char));		// keeps all file data in chars
 	strcpy(codedFile, "");
 	int byteCount = 0;													// amount of bytes needs to code
 	int bytePart = 0;													// amount of bites left
@@ -444,6 +425,7 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 				strcat(codedFile, pCoder[j].code);
 		}
 	}
+	fclose(file);
 	byteCount = strlen(codedFile) / CHAR_BIT;
 	bytePart = strlen(codedFile) % CHAR_BIT;
 	FILE* file2;														// coded file
@@ -466,26 +448,27 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 			fwrite(&pCoder[i].ascii, sizeof(char), 1, file2);		// (first: char code(1byte), second: amount of 
 			fwrite(&pCoder[i].sum, sizeof(int), 1, file2);			// frequency(4bytes)) * number of original symbols
 		}
+		free(pCoder);
 		unsigned char codedByte = NULL;									// coded data
 		int k = 0;
 		for (int i = 0; i < byteCount; i++)
 		{
 			codedByte = NULL;
-			for (int j = 0; j < 8; j++, k++)
+			for (int j = 0; j < CHAR_BIT; j++, k++)
 			{
 				if (codedFile[k] == '1')
 				{
-					codedByte = codedByte | (1 << (7 - j));
+					codedByte = codedByte | (1 << (CHAR_BIT - 1 - j));
 				}
 			}
 			fwrite(&codedByte, 1, 1, file2);
 		}
 		codedByte = NULL;
-		for (int j = 0; j < 8; j++)										// coded bites in 1 byte
+		for (int j = 0; j < CHAR_BIT; j++)										// coded bites in 1 byte
 		{
-			if ((j >= (8 - bytePart)) && (codedFile[k] == '1'))
+			if ((j >= (CHAR_BIT - bytePart)) && (codedFile[k] == '1'))
 			{
-				codedByte = codedByte | (1 << (7 - j));
+				codedByte = codedByte | (1 << (CHAR_BIT - 1 - j));
 				k++;
 			}
 		}
@@ -496,16 +479,17 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 	return;
 }
 
-void fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &codedFile)
+char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &codedFile)
 {
+	codedFile = (char*)malloc((byteCount * 8 + bytePart + 1) * sizeof(char));		// keeps all file data in chars
 	unsigned char codedByte = NULL;
 	int k = 0;
 	for (int i = 0; i < byteCount; i++)
 	{
 		fread(&codedByte, 1, 1, file);
-		for (int j = 0; j < 8; j++)
+		for (int j = 0; j < CHAR_BIT; j++)
 		{
-			if (codedByte & 128)
+			if (codedByte & (1 << (CHAR_BIT - 1)))
 				codedFile[k] = '1';
 			else
 				codedFile[k] = '0';
@@ -526,27 +510,29 @@ void fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &c
 	}
 	k = k + bytePart + 1;
 	codedFile[k] = '\0';
-	return;
+	fclose(file);
+	return codedFile;
 }
 
-void priorDelete(priorNode*& priorQue)
+void treeDelete(priorNode*& priorQue)
 {
 	if (priorQue != NULL)
 	{
-		priorDelete(priorQue->right);
-		priorDelete(priorQue->left);
+		treeDelete(priorQue->right);
+		treeDelete(priorQue->left);
 		free(priorQue);
 	}
 	return;
 }
-void priorWalking(priorNode*& priorQue, char*& codedFile, FILE*& file)
+
+void fileSaving(priorNode*& priorQue, char*& codedFile, FILE*& file)
 {
 	if (codedFile[curPosition] == '1' && priorQue->right != NULL)
 	{
 		curPosition++;
-		priorWalking(priorQue->right, codedFile, file);
+		fileSaving(priorQue->right, codedFile, file);
 	}
-	else if ((codedFile[curPosition] == '1'|| codedFile[curPosition] == '\0') && priorQue->right == NULL)
+	else if (codedFile[curPosition] == '1' && priorQue->right == NULL)
 	{
 		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
@@ -555,38 +541,13 @@ void priorWalking(priorNode*& priorQue, char*& codedFile, FILE*& file)
 	else if (codedFile[curPosition] == '0' && priorQue->left != NULL)
 	{
 		curPosition++;
-		priorWalking(priorQue->left, codedFile, file);
+		fileSaving(priorQue->left, codedFile, file);
 	}
-	else if ((codedFile[curPosition] == '0' || codedFile[curPosition] == '\0') && priorQue->left == NULL)
+	else if (codedFile[curPosition] == '0'  && priorQue->left == NULL)
 	{
 		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
 		return;
 	}
 	return;
-}
-void getSortedFlags(FILE* file)
-{
-	for (int i = 0; i < numUsed; i++)
-	{
-		fread(&flags[i].ascii, 1, 1, file);
-		fread(&flags[i].sum, sizeof(int), 1, file);
-	}
-	int ascii, sum = 0;
-	for (int i = 0; i < numUsed - 1; i++)
-	{
-		for (int j = numUsed; j > i; --j)
-		{
-			if (flags[j - 1].ascii > flags[j].ascii)
-			{
-				printf("sorting\n");
-				ascii = flags[j].ascii;
-				sum = flags[j].sum;
-				flags[j].ascii = flags[j - 1].ascii;
-				flags[j].sum = flags[j - 1].sum;
-				flags[j - 1].ascii = ascii;
-				flags[j - 1].sum = sum;
-			}
-		}
-	}
 }
