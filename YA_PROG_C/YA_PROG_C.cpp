@@ -45,6 +45,8 @@ char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &
 void fileSaving(priorNode*& priorQue, char* &codedFile, FILE* &file);
 void treeDelete(priorNode*& priorQue);
 
+void printQue(priorNode* priorQue);
+
 int main()
 {
 	FILE* file = getFileName();
@@ -57,7 +59,11 @@ int main()
 		fseek(file, 0, SEEK_SET);
 		priorNode* priorQue = NULL;										// queue of nodes
 		int numUsed = getCharacterFrequency(fileLen, file, priorQue);			// fill character frequency table and create a queue of nodes
+		printf("QUE before sorting:\n");
+		printQue(priorHead);
 		sortQue();														// sorting queue of nodes
+		printf("QUE after sorting:\n");
+		printQue(priorHead);
 		priorTree(priorHead);											// building the tree
 		pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));		// keep ascii and its code
 		for (int i = 0; i < numUsed; i++)
@@ -186,13 +192,16 @@ int getCharacterFrequency(int fileLen, FILE *file, priorNode* &priorQue)
 	for (int i = 0; i < fileLen; i++)
 	{
 		fread(&character, sizeof(char), 1, file);
-			printf("%c\n", character);
+//		if (character != '\r'){
+			printf("numUsed %d. %c, %d\n",numUsed,  character, character);
 			if (flags[character].sum == 0)
 			{
 				flags[character].ascii = i;
 				numUsed++;
+				printf("numUsed %d.\n", numUsed);
 			}
 			flags[character].sum++;
+//		}
 	}
 	for (int i = 0; i < 256; i++)
 	{
@@ -301,7 +310,7 @@ void sortQue()
 
 void priorTree(priorNode* priorQue)
 {
-	while (priorHead != priorTail->next)
+	while (priorHead != NULL)
 	{
 		priorNode* pNew = (priorNode*)malloc(sizeof(priorNode));
 		pNew->sum = (priorQue->sum + priorQue->next->sum);
@@ -316,8 +325,15 @@ void priorTree(priorNode* priorQue)
 		priorHead = priorQue->next->next;
 		priorQue = priorHead;
 
-		if (priorHead != priorTail->next)
+		printf("New node created: sum is: %d\n", pNew->sum);
+
+		if (priorHead != NULL)
+		{
+			printf("Enter to Insert, PRIORHEAD = : %d\n", priorHead);
 			priorInsert(priorHead, pNew);
+			priorQue = priorHead;
+			printf("Return from Insert, PRIORHEAD = : %d\n", priorHead);
+		}
 		else
 			priorQue = pNew;
 	}
@@ -330,6 +346,7 @@ void priorInsert(priorNode* priorQue, priorNode* pNew)
 	int value = 1;
 	while (value == 1)
 	{
+		printf("priorQue->:%c", priorQue->ascii);
 		if (priorQue->sum >= pNew->sum)		// New element goes before 
 		{
 			if (priorQue == priorHead)
@@ -339,6 +356,7 @@ void priorInsert(priorNode* priorQue, priorNode* pNew)
 		}
 		else if (priorQue->sum < pNew->sum)		// New element goes after
 		{
+			printf("Tail sum is:%d\n", priorTail->sum);
 			if (priorQue == priorTail)
 				value = 3;
 			else
@@ -347,13 +365,17 @@ void priorInsert(priorNode* priorQue, priorNode* pNew)
 		switch (value)
 		{
 		case 1:						// before head
+			printf("paste before head\n");
 			pNew->prev = NULL;
-			pNew->next = priorQue;
-			priorQue->prev = pNew;
+			pNew->next = priorHead;
+			priorHead->prev = pNew;
 			priorHead = pNew;
+			printf("priorHead = %d\n", priorHead);
+			printf("pNew = %d\n", pNew);
 			value = 0;
 			break;
 		case 2:						// between
+			printf("paste between\n");
 			pNew->prev = priorQue->prev;
 			pNew->next = priorQue;
 			priorQue->prev->next = pNew;
@@ -361,6 +383,7 @@ void priorInsert(priorNode* priorQue, priorNode* pNew)
 			value = 0;
 			break;
 		case 3:						// after tail
+			printf("paste after tail\n");
 			pNew->next = NULL;
 			pNew->prev = priorQue;
 			priorQue->next = pNew;
@@ -368,6 +391,7 @@ void priorInsert(priorNode* priorQue, priorNode* pNew)
 			value = 0;
 			break;
 		case 4:						// needs ahead
+			printf("go ahead\n");
 			priorQue = priorQue->next;
 			value = 1;
 			break;
@@ -428,6 +452,7 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 	fclose(file);
 	byteCount = strlen(codedFile) / CHAR_BIT;
 	bytePart = strlen(codedFile) % CHAR_BIT;
+	printf("byteCount = %d, bytePart = %d\n", byteCount, bytePart);
 	FILE* file2;														// coded file
 	char filename[255];
 	strcpy(filename, FILENAME);											// coded file name
@@ -443,10 +468,13 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 		fwrite(&numUsed, sizeof(char), 1, file2);						// 1 byte: number of original symbols used
 		fwrite(&byteCount, sizeof(int), 1, file2);						// 2-5 byte: number of bytes used for coded data
 		fwrite(&bytePart, sizeof(char), 1, file2);						// 6 byte: number of bites left
+		printf("table to file:\n");
+		printf("numUsed: %d", numUsed);
 		for (int i = 0; i < numUsed; i++)
 		{																// character frequency table:
 			fwrite(&pCoder[i].ascii, sizeof(char), 1, file2);		// (first: char code(1byte), second: amount of 
 			fwrite(&pCoder[i].sum, sizeof(int), 1, file2);			// frequency(4bytes)) * number of original symbols
+			printf("(%c, %d), ", pCoder[i].ascii, pCoder[i].sum);
 		}
 		free(pCoder);
 		unsigned char codedByte = NULL;									// coded data
@@ -463,16 +491,19 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 			}
 			fwrite(&codedByte, 1, 1, file2);
 		}
-		codedByte = NULL;
-		for (int j = 0; j < CHAR_BIT; j++)										// coded bites in 1 byte
+		if (bytePart != 0)
 		{
-			if ((j >= (CHAR_BIT - bytePart)) && (codedFile[k] == '1'))
+			codedByte = NULL;
+			for (int j = 0; j < CHAR_BIT; j++)										// coded bites in 1 byte
 			{
-				codedByte = codedByte | (1 << (CHAR_BIT - 1 - j));
-				k++;
+				if ((j >= (CHAR_BIT - bytePart)) && (codedFile[k] == '1'))
+				{
+					codedByte = codedByte | (1 << (CHAR_BIT - 1 - j));
+					k++;
+				}
 			}
-		}
 			fwrite(&codedByte, 1, 1, file2);
+		}
 	}
 	fclose(file2);
 	free(codedFile);
@@ -532,7 +563,7 @@ void fileSaving(priorNode*& priorQue, char*& codedFile, FILE*& file)
 		curPosition++;
 		fileSaving(priorQue->right, codedFile, file);
 	}
-	else if (codedFile[curPosition] == '1' && priorQue->right == NULL)
+	else if ((codedFile[curPosition] == '1'  || codedFile[curPosition] == '\0') && priorQue->right == NULL)
 	{
 		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
@@ -543,11 +574,25 @@ void fileSaving(priorNode*& priorQue, char*& codedFile, FILE*& file)
 		curPosition++;
 		fileSaving(priorQue->left, codedFile, file);
 	}
-	else if (codedFile[curPosition] == '0'  && priorQue->left == NULL)
+	else if ((codedFile[curPosition] == '0'  || codedFile[curPosition] == '\0') && priorQue->left == NULL)
 	{
 		printf("%c", priorQue->ascii);
 		fwrite(&priorQue->ascii, 1, 1, file);
 		return;
 	}
+	return;
+}
+
+
+void printQue(priorNode* priorQue)
+{
+	struct priorNode* pTemp;
+	pTemp = priorQue;
+	do
+	{
+		printf("ascii:%d, char: %c, sum:%d\n", pTemp->ascii,pTemp->ascii, pTemp->sum);
+		pTemp = pTemp->next;
+	} while (pTemp != NULL);
+	printf("TAIL ascii:%d, char: %c, sum:%d\n", priorTail->ascii, priorTail->ascii, priorTail->sum);
 	return;
 }
