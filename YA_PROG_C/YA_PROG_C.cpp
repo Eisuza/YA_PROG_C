@@ -56,8 +56,7 @@ int main()
 			fileLen++;
 		fseek(file, 0, SEEK_SET);
 		priorNode* priorQue = NULL;										// queue of nodes
-		int numUsed = getCharacterFrequency(fileLen, file, priorQue);
-		printf("Ahmed Younis: %d\n" , numUsed);		// fill character frequency table and create a queue of nodes
+		int numUsed = getCharacterFrequency(fileLen, file, priorQue);			// fill character frequency table and create a queue of nodes
 		sortQue();														// sorting queue of nodes
 		priorTree(priorHead);											// building the tree
 		pCoder = (codeTable*)malloc(numUsed * sizeof(codeTable));		// keep ascii and its code
@@ -134,11 +133,6 @@ FILE* getFileName()
 			extentionPosition = i;
 			mode = '1';
 		}
-		if (filename[i] == '\\')
-		{
-			namePosition = i + 1;
-			break;
-		}
 	}
 	for (i = extentionPosition; i < nameLen; i++)
 	{
@@ -150,7 +144,7 @@ FILE* getFileName()
 	{
 		mode = '0';
 		j = 0;
-		for (i = namePosition; i < extentionPosition; i++)
+		for (i = 0; i < extentionPosition; i++)
 		{
 			FILENAME[j] = filename[i];
 			j++;
@@ -166,7 +160,7 @@ FILE* getFileName()
 	else
 	{
 		j = 0;
-		for (i = namePosition; i < nameLen; i++)
+		for (i = 0; i < nameLen; i++)
 		{
 			FILENAME[j] = filename[i];
 			j++;
@@ -194,12 +188,12 @@ int getCharacterFrequency(int fileLen, FILE *file, priorNode* &priorQue)
 		fscanf(file, "%c", &character);
 //		fread(&character, sizeof(char), 1, file);
 //		if (character != '\r'){
-			//printf("numUsed %d. %c, %d\n",numUsed,  character, character);
+			printf("numUsed %d. %c, %d\n",numUsed,  character, character);
 			if (flags[character].sum == 0)
 			{
 				flags[character].ascii = i;
 				numUsed++;
-				// printf("numUsed %d.\n", numUsed);
+				printf("numUsed %d.\n", numUsed);
 			}
 			flags[character].sum++;
 //		}
@@ -218,19 +212,16 @@ int getCharacterFrequency(int fileLen, FILE *file, priorNode* &priorQue)
 
 void getSortedFlags(int numUsed, FILE* file, priorNode* &priorQue)
 {
-	flags = (charCount*)malloc(numUsed * (sizeof(charCount)) );		// keep ascii and its code
-	for (int i = 0; i < numUsed; i++)                          
+	flags = (charCount*)malloc(numUsed * (sizeof(charCount)));		// keep ascii and its code
+	for (int i = 0; i < numUsed; i++)
 	{
 		fread(&flags[i].ascii, 1, 1, file);
-		
 		fread(&flags[i].sum, sizeof(int), 1, file);
-		//printf("Younis flags: num = %d ---  ascii = %c --- count = %d\n", i, flags[i].ascii, flags[i].sum);
 	}
 	int ascii, sum = 0;
 	for (int i = 0; i < numUsed - 1; i++)
 	{
-		// printf("Younis flags: num = %d ---  ascii = %c --- count = %d\n", i, flags[i].ascii, flags[i].sum);
-		for (int j = numUsed-1; j > i; --j)
+		for (int j = numUsed - 1; j > i; --j)
 		{
 			if (flags[j - 1].ascii > flags[j].ascii)
 			{
@@ -242,14 +233,11 @@ void getSortedFlags(int numUsed, FILE* file, priorNode* &priorQue)
 				flags[j - 1].sum = sum;
 			}
 		}
-		// printf("Younis flags: num = %d ---  ascii = %c --- count = %d\n", i, flags[i].ascii, flags[i].sum);
 	}
-
 	for (int i = 0; i < numUsed; i++)
 	{
-		
 		priorQue = createQue(priorQue, flags[i].ascii, flags[i].sum);
-		// printf(" Younis debug step 2 flags: num = %d ---  ascii = %c --- count = %d\n", i, flags[i].ascii, flags[i].sum);
+		printf("flags: %d. %c. = %d\n", i, flags[i].ascii, flags[i].sum);
 	}
 	free(flags);
 	return;
