@@ -186,25 +186,17 @@ int getCharacterFrequency(int fileLen, FILE *file, priorNode* &priorQue)
 	for (int i = 0; i < fileLen; i++)
 	{
 		fscanf(file, "%c", &character);
-//		fread(&character, sizeof(char), 1, file);
-//		if (character != '\r'){
-			printf("numUsed %d. %c, %d\n",numUsed,  character, character);
 			if (flags[character].sum == 0)
 			{
 				flags[character].ascii = i;
 				numUsed++;
-				printf("numUsed %d.\n", numUsed);
 			}
 			flags[character].sum++;
-//		}
 	}
 	for (int i = 0; i < 256; i++)
 	{
 		if ((flags[i].sum > 0))
-		{
 			priorQue = createQue(priorQue, i, flags[i].sum);
-			printf("flags: %d. %c. = %d\n", i, i, flags[i].sum);
-		}
 	}
 	free(flags);
 	return numUsed;
@@ -235,10 +227,7 @@ void getSortedFlags(int numUsed, FILE* file, priorNode* &priorQue)
 		}
 	}
 	for (int i = 0; i < numUsed; i++)
-	{
 		priorQue = createQue(priorQue, flags[i].ascii, flags[i].sum);
-		printf("flags: %d. %c. = %d\n", i, flags[i].ascii, flags[i].sum);
-	}
 	free(flags);
 	return;
 }
@@ -407,7 +396,6 @@ void treeCodding(priorNode* priorQue, char* code)
 		strcpy(pCoder[tableRow].code, priorQue->code);
 		pCoder[tableRow].sum = priorQue->sum;
 		pCoder[tableRow].ascii = priorQue->ascii;
-		printf("%c, %s\n", pCoder[tableRow].ascii, code);
 		tableRow++;
 	}
 	return;
@@ -424,7 +412,6 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 	for (int i = 0; i < fileLen; i++)
 	{
 		fscanf(file, "%c", &character);
-		//fread(&character, sizeof(char), 1, file);						// coding each character from file
 		for (int j = 0; j < numUsed; j++)
 		{
 			if ((int)character == pCoder[j].ascii)
@@ -449,18 +436,12 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 		fwrite(&numUsed, sizeof(char), 1, file2);						// 1 byte: number of original symbols used
 		fwrite(&byteCount, sizeof(int), 1, file2);						// 2-5 byte: number of bytes used for coded data
 		fwrite(&bytePart, sizeof(char), 1, file2);						// 6 byte: number of bites left
-		printf("table to file:\n");
-		printf("numUsed: %d\n", numUsed);
-		printf("byteCount: %d\n", byteCount);
-		printf("bytePart: %d\n", bytePart);
 		for (int i = 0; i < numUsed; i++)
 		{																// character frequency table:
 			fwrite(&pCoder[i].ascii, sizeof(char), 1, file2);		// (first: char code(1byte), second: amount of 
 			fwrite(&pCoder[i].sum, sizeof(int), 1, file2);			// frequency(4bytes)) * number of original symbols
-			printf("(%c, %d), ", pCoder[i].ascii, pCoder[i].sum);
 		}
 		free(pCoder);
-		printf("%s\n", codedFile);
 		unsigned char codedByte = NULL;									// coded data
 		int k = 0;
 		for (int i = 0; i < byteCount; i++)
@@ -476,8 +457,6 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 			fwrite(&codedByte, 1, 1, file2);
 		}
 
-//		if (bytePart != 0)
-//		{
 		codedByte = NULL;
 		for (int j = bytePart; j > 0; j--)										// coded bites in 1 byte
 		{
@@ -490,9 +469,6 @@ void fileCodding(FILE* file, int fileLen, int numUsed)
 				k++;
 		}
 		fwrite(&codedByte, 1, 1, file2);
-//		}
-//		else
-//			fwrite(&codedByte, 1, 1, file2);
 	}
 	fclose(file2);
 	free(codedFile);
@@ -504,11 +480,9 @@ char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &
 	codedFile = (char*)malloc((byteCount * 8 + bytePart + 1) * sizeof(char));		// keeps all file data in chars
 	unsigned char codedByte = NULL;
 	int k = 0;
-	printf("byteCount is: %d", byteCount);
 	for (int i = 0; i < byteCount; i++)
 	{
 		fread(&codedByte, 1, 1, file);
-		printf("%d. %d = ", i + 1, codedByte);
 		for (int j = 0; j < CHAR_BIT; j++)
 		{
 			if (codedByte & (1 << (CHAR_BIT - 1)))
@@ -516,15 +490,10 @@ char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &
 			else
 				codedFile[k] = '0';
 			codedByte <<= 1;
-			printf("%c", codedFile[k]);
 			k++;
 		}
-		printf("\n");
 	}
-//	if (bytePart != 0)
-//	{
 		fread(&codedByte, 1, 1, file);
-		printf("%c=", codedByte);
 		k = k + bytePart - 1;
 		for (int j = 0; j < bytePart; j++)
 		{
@@ -533,12 +502,9 @@ char* fileUncoding(FILE* file, int byteCount, int bytePart, int numUsed, char* &
 			else
 				codedFile[k] = '0';
 			codedByte >>= 1;
-			printf("Last: %c\n", codedFile[k]);
 			k--;
 		}
-		printf("\n");
 		k = k + bytePart + 1;
-//	}
 	codedFile[k] = '\0';
 	fclose(file);
 	return codedFile;
@@ -564,8 +530,6 @@ void fileSaving(priorNode*& priorQue, char*& codedFile, FILE*& file)
 	}
 	else if ((codedFile[curPosition] == '1'    || codedFile[curPosition] == '\0') && priorQue->right == NULL)
 	{
-		printf("%c", priorQue->ascii);
-		//fwrite(&priorQue->ascii, 1, 1, file);
 		fprintf(file, "%c", priorQue->ascii);
 		return;
 	}
@@ -577,7 +541,6 @@ void fileSaving(priorNode*& priorQue, char*& codedFile, FILE*& file)
 	else if ((codedFile[curPosition] == '0'   || codedFile[curPosition] == '\0') && priorQue->left == NULL)
 	{
 		printf("%c", priorQue->ascii);
-		//fwrite(&priorQue->ascii, 1, 1, file);
 		fprintf(file, "%c", priorQue->ascii);
 		return;
 	}
